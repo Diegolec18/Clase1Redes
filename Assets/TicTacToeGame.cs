@@ -1,37 +1,107 @@
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro; // Importamos TextMeshPro
-
+using TMPro;
+using UnityEngine.Networking;
+using System.Collections;
 public class TicTacToeGame : MonoBehaviour
 {
-    public Button[] buttons; // Array de botones (9 botones)
-    public TMP_Text statusText; // Texto para mostrar mensajes
-    private string[] board = new string[9]; // Estado del tablero
-    private string currentPlayer = "X"; // Jugador actual ("X" o "O")
+    public Button[] buttons; 
+    public TMP_Text statusText; 
+    private string[] board = new string[9]; 
+    private string currentPlayer = "X";
+    private int actualTurn;
 
     void Start()
     {
-        ResetGame(); // Inicia el juego en cada ejecución
+        ResetGame();
+        StartCoroutine(GetText());
+        //StartCoroutine(Tirada());
+    }
+
+    IEnumerator GetText()
+    {
+        UnityWebRequest www = UnityWebRequest.Get("http://localhost/gato/gato.php?action=2&id=id1");
+        yield return www.SendWebRequest();
+
+        if (www.result != UnityWebRequest.Result.Success/*www.isNetworkError*/)
+        {
+            Debug.Log(www.error);
+
+        }
+        else
+        {
+            string json = www.downloadHandler.text;
+            Debug.Log("JSON recibido: " + json);
+            //byte[] results = www.downloadHandler.data;
+            TicTacToeData data = JsonUtility.FromJson<TicTacToeData>(json);
+
+            if (data != null && data.board.Length == 9)
+            {
+                UpdateBoardFromJson(data.board);
+            }
+        }
+    }
+    IEnumerator Tirada()
+    {
+        UnityWebRequest www = UnityWebRequest.Get("http://localhost/gato/gato.php?action=3&id=id1&pos=6");
+        yield return www.SendWebRequest();
+
+        if (www.result != UnityWebRequest.Result.Success/*www.isNetworkError*/)
+        {
+            Debug.Log(www.error);
+
+        }
+        else
+        {
+            string json = www.downloadHandler.text;
+            Debug.Log("JSON recibido: " + json);
+            //byte[] results = www.downloadHandler.data;
+            //TicTacToeData data = JsonUtility.FromJson<TicTacToeData>(json);
+
+            //if (data != null && data.board.Length == 9)
+            //{
+            //    UpdateBoardFromJson(data.board);
+            //}
+        }
+    }
+
+    void UpdateBoardFromJson(int[] jsonBoard)
+    {
+        for (int i = 0; i < jsonBoard.Length; i++)
+        {
+            if (jsonBoard[i] == 1)
+                board[i] = "X";
+            else if (jsonBoard[i] == 2)
+                board[i] = "O";
+            else
+                board[i] = ""; // Casilla vacía
+
+            // Actualizar el texto en el botón
+            TMP_Text buttonText = buttons[i].GetComponentInChildren<TMP_Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = board[i];
+            }
+        }
     }
 
     public void OnButtonClick(int index)
     {
-        if (board[index] == "") // Verifica si la casilla está vacía
+        if (board[index] == "") 
         {
             board[index] = currentPlayer;
 
-            // Busca el componente TMP_Text dentro del botón
             TMP_Text buttonText = buttons[index].GetComponentInChildren<TMP_Text>();
             if (buttonText != null)
             {
-                buttonText.text = currentPlayer; // Coloca "X" o "O"
+                buttonText.text = currentPlayer;
             }
             else
             {
                 Debug.LogError("Error: El botón no tiene un componente TMP_Text.");
             }
 
-            // Verificar si hay ganador
+            
             if (CheckWin())
             {
                 statusText.text = "Ganador: " + currentPlayer;
@@ -39,7 +109,7 @@ public class TicTacToeGame : MonoBehaviour
                 return;
             }
 
-            // Verificar si hay empate
+            
             if (CheckTie())
             {
                 statusText.text = "¡Empate!";
@@ -47,7 +117,6 @@ public class TicTacToeGame : MonoBehaviour
                 return;
             }
 
-            // Cambiar de jugador
             SwitchPlayer();
         }
     }
